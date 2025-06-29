@@ -15,20 +15,59 @@ const gravity = 0.5;
 
 const keys = {};
 
-const platforms = [
-  { x: 0, y: 370, width: 600, height: 30 },  // ground
-  { x: 100, y: 300, width: 100, height: 10 },
-  { x: 250, y: 250, width: 100, height: 10 },
-  { x: 400, y: 200, width: 100, height: 10 },
+let levels = [
+  {
+    platforms: [
+      { x: 0, y: 370, width: 600, height: 30 },
+      { x: 100, y: 300, width: 100, height: 10 },
+      { x: 250, y: 250, width: 100, height: 10 },
+      { x: 400, y: 200, width: 100, height: 10 },
+    ],
+    coins: [
+      { x: 120, y: 270, collected: false },
+      { x: 270, y: 220, collected: false },
+      { x: 420, y: 170, collected: false },
+    ],
+    flag: { x: 500, y: 170, width: 20, height: 40 }
+  },
+  {
+    platforms: [
+      { x: 0, y: 370, width: 600, height: 30 },
+      { x: 150, y: 320, width: 100, height: 10 },
+      { x: 300, y: 270, width: 100, height: 10 },
+      { x: 450, y: 220, width: 100, height: 10 },
+    ],
+    coins: [
+      { x: 170, y: 290, collected: false },
+      { x: 320, y: 240, collected: false },
+      { x: 470, y: 190, collected: false },
+    ],
+    flag: { x: 550, y: 180, width: 20, height: 40 }
+  },
+  {
+    platforms: [
+      { x: 0, y: 370, width: 600, height: 30 },
+      { x: 80, y: 320, width: 80, height: 10 },
+      { x: 180, y: 270, width: 80, height: 10 },
+      { x: 280, y: 220, width: 80, height: 10 },
+      { x: 380, y: 170, width: 80, height: 10 },
+      { x: 480, y: 120, width: 80, height: 10 },
+    ],
+    coins: [
+      { x: 100, y: 290, collected: false },
+      { x: 200, y: 240, collected: false },
+      { x: 300, y: 190, collected: false },
+      { x: 400, y: 140, collected: false },
+      { x: 500, y: 90, collected: false },
+    ],
+    flag: { x: 550, y: 80, width: 20, height: 40 }
+  }
 ];
 
-let coins = [
-  { x: 120, y: 270, collected: false },
-  { x: 270, y: 220, collected: false },
-  { x: 420, y: 170, collected: false },
-];
-
-const flag = { x: 500, y: 170, width: 20, height: 40 };
+let currentLevel = 0;
+let platforms = levels[currentLevel].platforms;
+let coins = levels[currentLevel].coins;
+let flag = levels[currentLevel].flag;
 
 let score = 0;
 
@@ -89,14 +128,26 @@ function update() {
     }
   });
 
-  // Check for win
+  // Check for level complete
   const allCollected = coins.every(coin => coin.collected);
   if (allCollected &&
     player.x < flag.x + flag.width &&
     player.x + player.width > flag.x &&
     player.y < flag.y + flag.height &&
     player.y + player.height > flag.y) {
-    document.getElementById("winMessage").innerText = "🎉 You Win!";
+
+    currentLevel++;
+
+    if (currentLevel < levels.length) {
+      // Load next level
+      platforms = levels[currentLevel].platforms;
+      coins = levels[currentLevel].coins;
+      flag = levels[currentLevel].flag;
+      player.x = 50;
+      player.y = 300;
+    } else {
+      document.getElementById("winMessage").innerText = "🏆 You finished all levels!";
+    }
   }
 
   draw();
@@ -157,37 +208,28 @@ function drawStickman(x, y, state) {
   ctx.beginPath();
 
   if (state === "idle") {
-    // Arms down
     ctx.moveTo(x, y - 5);
     ctx.lineTo(x - 5, y + 5);
     ctx.moveTo(x, y - 5);
     ctx.lineTo(x + 5, y + 5);
-
-    // Legs straight
     ctx.moveTo(x, y + 10);
     ctx.lineTo(x - 5, y + 20);
     ctx.moveTo(x, y + 10);
     ctx.lineTo(x + 5, y + 20);
   } else if (state === "running") {
-    // Arms swing
     ctx.moveTo(x, y - 5);
     ctx.lineTo(x - 7, y + 5);
     ctx.moveTo(x, y - 5);
     ctx.lineTo(x + 7, y + 5);
-
-    // Legs apart
     ctx.moveTo(x, y + 10);
     ctx.lineTo(x - 7, y + 20);
     ctx.moveTo(x, y + 10);
     ctx.lineTo(x + 7, y + 20);
   } else if (state === "jumping") {
-    // Arms up
     ctx.moveTo(x, y - 10);
     ctx.lineTo(x - 7, y - 2);
     ctx.moveTo(x, y - 10);
     ctx.lineTo(x + 7, y - 2);
-
-    // Legs together
     ctx.moveTo(x, y + 10);
     ctx.lineTo(x - 3, y + 20);
     ctx.moveTo(x, y + 10);
