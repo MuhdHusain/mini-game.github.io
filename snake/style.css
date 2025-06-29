@@ -1,0 +1,24 @@
+body {
+  text-align: center;
+  background: #000;
+  color: #fff;
+}
+
+canvas {
+  border: 2px solid #fff;
+  background: #111;
+}
+
+button {
+  margin-top: 20px;
+  padding: 10px 20px;
+  font-size: 1rem;
+  background: #007acc;
+  color: #fff;
+  border: none;
+  border-radius: 5px;
+}
+
+button:hover {
+  background: #005fa3;
+}
