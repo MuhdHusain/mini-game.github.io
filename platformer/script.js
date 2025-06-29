@@ -1,6 +1,17 @@
+// Get canvas + context
 const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
 
+// Load your cartoon background
+const background = new Image();
+background.src = "img/cartoon.jpg";
+
+// Sounds (optional, comment out if you don’t have them yet)
+const jumpSound = new Audio("sounds/jump.wav");
+const coinSound = new Audio("sounds/coin.wav");
+const winSound = new Audio("sounds/win.wav");
+
+// Stickman player
 const player = {
   x: 50,
   y: 300,
@@ -12,9 +23,11 @@ const player = {
 };
 
 const gravity = 0.5;
-
 const keys = {};
 
+let score = 0;
+
+// Example levels
 let levels = [
   {
     platforms: [
@@ -28,7 +41,10 @@ let levels = [
       { x: 270, y: 220, collected: false },
       { x: 420, y: 170, collected: false },
     ],
-    flag: { x: 500, y: 170, width: 20, height: 40 }
+    flag: { x: 500, y: 170, width: 20, height: 40 },
+    enemies: [
+      { x: 200, y: 350, width: 20, height: 20, dir: 1, speed: 1 },
+    ]
   },
   {
     platforms: [
@@ -42,25 +58,10 @@ let levels = [
       { x: 320, y: 240, collected: false },
       { x: 470, y: 190, collected: false },
     ],
-    flag: { x: 550, y: 180, width: 20, height: 40 }
-  },
-  {
-    platforms: [
-      { x: 0, y: 370, width: 600, height: 30 },
-      { x: 80, y: 320, width: 80, height: 10 },
-      { x: 180, y: 270, width: 80, height: 10 },
-      { x: 280, y: 220, width: 80, height: 10 },
-      { x: 380, y: 170, width: 80, height: 10 },
-      { x: 480, y: 120, width: 80, height: 10 },
-    ],
-    coins: [
-      { x: 100, y: 290, collected: false },
-      { x: 200, y: 240, collected: false },
-      { x: 300, y: 190, collected: false },
-      { x: 400, y: 140, collected: false },
-      { x: 500, y: 90, collected: false },
-    ],
-    flag: { x: 550, y: 80, width: 20, height: 40 }
+    flag: { x: 550, y: 180, width: 20, height: 40 },
+    enemies: [
+      { x: 350, y: 300, width: 20, height: 20, dir: -1, speed: 1 },
+    ]
   }
 ];
 
@@ -68,8 +69,7 @@ let currentLevel = 0;
 let platforms = levels[currentLevel].platforms;
 let coins = levels[currentLevel].coins;
 let flag = levels[currentLevel].flag;
-
-let score = 0;
+let enemies = levels[currentLevel].enemies;
 
 document.addEventListener("keydown", (e) => keys[e.code] = true);
 document.addEventListener("keyup", (e) => keys[e.code] = false);
@@ -87,6 +87,7 @@ function update() {
   if (keys["Space"] && !player.jumping) {
     player.ySpeed = -10;
     player.jumping = true;
+    jumpSound.play();
   }
 
   // Gravity
@@ -124,7 +125,24 @@ function update() {
       player.y + player.height > coin.y) {
       coin.collected = true;
       score++;
+      coinSound.play();
       document.getElementById("score").innerText = score;
+    }
+  });
+
+  // Move enemies & check collision
+  enemies.forEach(enemy => {
+    enemy.x += enemy.speed * enemy.dir;
+    if (enemy.x < 50 || enemy.x > 550) {
+      enemy.dir *= -1;
+    }
+
+    if (player.x < enemy.x + enemy.width &&
+        player.x + player.width > enemy.x &&
+        player.y < enemy.y + enemy.height &&
+        player.y + player.height > enemy.y) {
+      document.getElementById("winMessage").innerText = "💀 You hit an enemy! Restarting...";
+      resetLevel();
     }
   });
 
@@ -137,14 +155,10 @@ function update() {
     player.y + player.height > flag.y) {
 
     currentLevel++;
+    winSound.play();
 
     if (currentLevel < levels.length) {
-      // Load next level
-      platforms = levels[currentLevel].platforms;
-      coins = levels[currentLevel].coins;
-      flag = levels[currentLevel].flag;
-      player.x = 50;
-      player.y = 300;
+      loadLevel(currentLevel);
     } else {
       document.getElementById("winMessage").innerText = "🏆 You finished all levels!";
     }
@@ -155,18 +169,12 @@ function update() {
 }
 
 function draw() {
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-  // Determine player state
-  let playerState = "idle";
-  if (player.jumping) {
-    playerState = "jumping";
-  } else if (player.xSpeed !== 0) {
-    playerState = "running";
-  }
+  // Draw background
+  ctx.imageSmoothingEnabled = false;
+  ctx.drawImage(background, 0, 0, canvas.width, canvas.height);
 
   // Draw stickman
-  drawStickman(player.x + player.width / 2, player.y + player.height / 2, playerState);
+  drawStickman(player.x + player.width / 2, player.y + player.height / 2);
 
   // Draw platforms
   ctx.fillStyle = "white";
@@ -187,10 +195,17 @@ function draw() {
   // Draw flag
   ctx.fillStyle = "red";
   ctx.fillRect(flag.x, flag.y, flag.width, flag.height);
+
+  // Draw enemies
+  ctx.fillStyle = "purple";
+  enemies.forEach(enemy => {
+    ctx.fillRect(enemy.x, enemy.y, enemy.width, enemy.height);
+  });
 }
 
-function drawStickman(x, y, state) {
-  ctx.strokeStyle = "#0f0"; // green stickman
+// Stickman drawing
+function drawStickman(x, y) {
+  ctx.strokeStyle = "#0f0"; // Green stickman
   ctx.lineWidth = 2;
 
   // Head
@@ -204,39 +219,39 @@ function drawStickman(x, y, state) {
   ctx.lineTo(x, y + 10);
   ctx.stroke();
 
-  // Arms + Legs depend on state
+  // Arms
   ctx.beginPath();
-
-  if (state === "idle") {
-    ctx.moveTo(x, y - 5);
-    ctx.lineTo(x - 5, y + 5);
-    ctx.moveTo(x, y - 5);
-    ctx.lineTo(x + 5, y + 5);
-    ctx.moveTo(x, y + 10);
-    ctx.lineTo(x - 5, y + 20);
-    ctx.moveTo(x, y + 10);
-    ctx.lineTo(x + 5, y + 20);
-  } else if (state === "running") {
-    ctx.moveTo(x, y - 5);
-    ctx.lineTo(x - 7, y + 5);
-    ctx.moveTo(x, y - 5);
-    ctx.lineTo(x + 7, y + 5);
-    ctx.moveTo(x, y + 10);
-    ctx.lineTo(x - 7, y + 20);
-    ctx.moveTo(x, y + 10);
-    ctx.lineTo(x + 7, y + 20);
-  } else if (state === "jumping") {
-    ctx.moveTo(x, y - 10);
-    ctx.lineTo(x - 7, y - 2);
-    ctx.moveTo(x, y - 10);
-    ctx.lineTo(x + 7, y - 2);
-    ctx.moveTo(x, y + 10);
-    ctx.lineTo(x - 3, y + 20);
-    ctx.moveTo(x, y + 10);
-    ctx.lineTo(x + 3, y + 20);
-  }
-
+  ctx.moveTo(x, y - 5);
+  ctx.lineTo(x - 5, y + 5);
+  ctx.moveTo(x, y - 5);
+  ctx.lineTo(x + 5, y + 5);
   ctx.stroke();
+
+  // Legs
+  ctx.beginPath();
+  ctx.moveTo(x, y + 10);
+  ctx.lineTo(x - 5, y + 20);
+  ctx.moveTo(x, y + 10);
+  ctx.lineTo(x + 5, y + 20);
+  ctx.stroke();
+}
+
+// Load next level
+function loadLevel(levelIndex) {
+  platforms = levels[levelIndex].platforms;
+  coins = levels[levelIndex].coins;
+  flag = levels[levelIndex].flag;
+  enemies = levels[levelIndex].enemies;
+  resetLevel();
+}
+
+// Reset position + coins
+function resetLevel() {
+  player.x = 50;
+  player.y = 300;
+  player.xSpeed = 0;
+  player.ySpeed = 0;
+  levels[currentLevel].coins.forEach(c => c.collected = false);
 }
 
 update();
